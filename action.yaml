@@ -1,0 +1,16 @@
+name: "article_uploader"
+description: "Upload .md files through API"
+inputs:
+  article_folder:
+    description: "Folder for article that needs to be uploaded"
+    required: true
+outputs:
+  status:
+    description: "Status of article upload API request"
+  errors:
+    description: "Any errors encountered"
+  detail:
+    description: "Any detail that needs to be given regarding the completed status"
+runs:
+  using: "node20"
+  main: "index.js"

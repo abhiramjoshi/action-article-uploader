@@ -1,0 +1,67 @@
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+jobs:
+  check_build_required:
+    runs-on: ubuntu-latest
+    name: Check If Build Required
+    outputs:
+      compile_required: ${{ steps.check_changes.outputs.compile_required }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Check if Go files changed
+        id: check_changes
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -qE '*.go$'; then
+            echo "compile_required=true" >> $GITHUB_OUTPUT
+          else
+            echo "compile_required=false" >> $GITHUB_OUTPUT
+          fi
+  build_go_mods:
+    needs: [check_build_required]
+    if: needs.check_build_required.outputs.compile_required == 'true'
+    runs-on: ubuntu-latest
+    name: Build Go action binaries
+    strategy:
+      matrix:
+        arch: ['amd64', 'arm64']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.4'
+      - name: Install dependencies
+        run: go get .
+      - name: Build
+        run: go build -o main-linux-${{ matrix.arch }}-${{ inputs.version }} .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: main-linux-${{ matrix.arch }}-${{ inputs.version }}
+          path: ./main-linux-${{ matrix.arch }}-${{ inputs.version }}
+  commit_binaries:
+    needs: [build_go_mods]
+    runs-on: ubuntu-latest
+    name: Commit built go binaries
+    steps:
+      - uses: actions/checkout@v4
+      - name: getbins
+        uses: actions/download-artifact@v4
+        with:
+          path: ./bins/
+      - name: Make bins executable
+        run: |
+          git update-index --chmod=+x bins/*/*
+      - name: Commit
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: Github Actions Go build binaries for ${{ inputs.version }}
+          committer_name: Github Actions
+          committer_email: actionbot@github.com
+          add: 'bins/*'
+
