@@ -6,9 +6,9 @@ This go module, designed to be used as a CLI tool will allow us to automatically
 
 1. Github Actions detects change in files in article folder
 2. Github Actions calls article_uploader giving it the folder of the article that changed
-3. 
-  a. Go program figures out if article exists, modifies if it does
-  b. If article does not exist, Go program will create the article by sending an API request to the server to upload the article
+3.
+    1. Go program figures out if article exists, modifies if it does
+    2. If article does not exist, Go program will create the article by sending an API request to the server to upload the article
 4. Response to article has image links, therefore images will be uploaded
 5. Go writes log out for visibility
 
