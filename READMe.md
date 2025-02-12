@@ -1,4 +1,4 @@
-## Article Uploader
+# Article Uploader
 
 This go module, designed to be used as a CLI tool will allow us to automatically detect and upload articles found in our articles directory to our website. The usefulness here is that it allows us to offload the work of creating an API request, sending it to our server and handling any errors to a self-contianed bit of code, written in a more advanced and maintainable language that the jobs available on Github Actions purely
 
