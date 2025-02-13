@@ -46,8 +46,13 @@ func init() {
 }
 
 func main() {
-	folder := githubactions.GetInput("article_folder")
-  folder = "test"
+  var folder string
+  action := githubactions.New()
+  if os.Getenv("ENV") == "DEV" {
+    folder = "test"
+  }else{
+    folder = action.GetInput("article_folder")
+  }
 	articleName, articleFilepath, articlePhotos, err := parseArticle(folder)
 	if err != nil {
 		logger.Error("There was an error parsing the article folder","error", err)

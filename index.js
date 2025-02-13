@@ -9,10 +9,10 @@ function chooseBinary() {
     const arch = os.arch()
 
     if (platform === 'linux' && arch === 'x64') {
-        return `main-linux-amd64-${VERSION}`
+        return `action-linux-amd64-${VERSION}`
     }
     if (platform === 'linux' && arch === 'arm64') {
-        return `main-linux-arm64-${VERSION}`
+        return `action-linux-arm64-${VERSION}`
     }
 
     console.error(`Unsupported platform (${platform}) and architecture (${arch})`)
