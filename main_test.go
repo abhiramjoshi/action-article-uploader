@@ -100,7 +100,7 @@ func TestParseArticleNoArticle(t *testing.T) {
 func TestCreateArticleStruct(t *testing.T) {
   articleFolder := "./test"
   wantContent := "This is a test article ![testing](testimage)"
-  wantImages := []Image{{Filename: "testimage", Data: ""}}
+  wantImages := []Image{{Filename: "testimage", Data: nil}}
   wantArticleStruct := Article{Title: "testing", Content: wantContent, Images: wantImages, Path: filepath.Clean(articleFolder)}
   name, article, photos, err := parseArticle(articleFolder)
   if err != nil {

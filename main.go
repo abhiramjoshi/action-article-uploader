@@ -68,7 +68,7 @@ func main() {
 	defer response.Body.Close()
   body, err := io.ReadAll(response.Body)
 	if err != nil {
-		logger.Error("Error reading response body", err)
+		logger.Error("Error reading response body","error", err)
 	}
   logger.Info("Recieved response","status", *&response.Status ,"body", string(body))
 	logger.Debug(fmt.Sprintf("%v, %v, %v, %v", folder, articleFilepath, articleName, articlePhotos))
