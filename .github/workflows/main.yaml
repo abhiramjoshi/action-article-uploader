@@ -21,13 +21,20 @@ jobs:
               echo "Build version not specified"
               exit 1
             fi
-            echo "build_version=$(cat .build_version)" >> $GITHUB_OUTPUT
+            echo "build_version=$(cat .build_version)"
+            echo "build_version=$(cat .build_version)" >> "$GITHUB_OUTPUT"
           else
             echo ".build_version file not found"
             exit 1
           fi
+  debug_build_version:
+    runs-on: ubuntu-latest
+    needs: [get_build_version]
+    steps:
+      - name: Debug Build Version
+        run: echo "Build version is ${{ needs.get_build_version.outputs.build_version }}"
   build_go_bins:
     needs: [get_build_version]
     uses: ./.github/workflows/buildgo.yaml
     with: 
-      version: ${{ needs.get_build_version.outputs.build_version }}
+      version: "${{ needs.get_build_version.outputs.build_version }}"

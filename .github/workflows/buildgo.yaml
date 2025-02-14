@@ -39,12 +39,8 @@ jobs:
       - name: Install dependencies
         run: go get .
       - name: Build
-        env:
-          BUILD_VER: ${{ needs.get_build_version.outputs.build_version }}
         run: go build -o action-linux-${{ matrix.arch }}-${{ inputs.version }} .
       - uses: actions/upload-artifact@v4
-        env:
-          BUILD_VER: ${{ needs.get_build_version.outputs.build_version }} 
         with:
           name: action-linux-${{ matrix.arch }}-${{ inputs.version }}
           path: ./action-linux-${{ matrix.arch }}-${{ inputs.version }}
