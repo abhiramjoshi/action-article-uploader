@@ -159,8 +159,8 @@ func sendPostRequest(article Article) (*http.Response, error) {
 	return resp, nil
 }
 
+// Creates an article object that can be sent via a POST requests
 func createArticlePayload(articleName string, articleFile string, articlePhotos string) (Article, error) {
-	// Creates an article object that can be sent via a POST requests
 	data, err := os.ReadFile(articleFile)
 	if err != nil {
 		return Article{}, fmt.Errorf("Error reading file: %v", err)
