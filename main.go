@@ -124,7 +124,7 @@ func parseArticle(articleFolder string) (string, string, string, error) {
 	return articleName, articleFilepath, articlePhotos, nil
 }
 
-// Send POST request to site
+// Send POST request containing article payload to site
 func sendPostRequest(article Article) (*http.Response, error) {
 	base_url, exists := os.LookupEnv("BASE_DOMAIN")
 	if !exists {
