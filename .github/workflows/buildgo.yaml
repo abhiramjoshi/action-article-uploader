@@ -23,7 +23,7 @@ jobs:
             echo "compile_required=false" >> $GITHUB_OUTPUT
           fi
   build_go_mods:
-    needs: [get_build_version, check_build_required]
+    needs: [check_build_required]
     if: needs.check_build_required.outputs.compile_required == 'true'
     runs-on: ubuntu-latest
     name: Build Go action binaries
