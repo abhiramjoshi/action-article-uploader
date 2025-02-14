@@ -56,7 +56,7 @@ jobs:
           path: ./bins/
       - name: Make bins executable
         run: |
-          git update-index --chmod=+x bins/*/*
+          git update-index --add --chmod=+x bins/*/*
       - name: Commit
         uses: EndBug/add-and-commit@v9
         with:
