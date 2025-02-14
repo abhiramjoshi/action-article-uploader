@@ -63,9 +63,11 @@ jobs:
           BUILD_VER: ${{ needs.get_build_version.outputs.build_version }}
         run: go build -o action-linux-${{ matrix.arch }}-$BUILD_VER .
       - uses: actions/upload-artifact@v4
+        env:
+          BUILD_VER: ${{ needs.get_build_version.outputs.build_version }} 
         with:
-          name: action-linux-${{ matrix.arch }}-${{ inputs.version }}
-          path: ./action-linux-${{ matrix.arch }}-${{ inputs.version }}
+          name: action-linux-${{ matrix.arch }}-$BUILD_VER
+          path: ./action-linux-${{ matrix.arch }}-$BUILD_VER
   commit_binaries:
     needs: [build_go_mods]
     runs-on: ubuntu-latest
