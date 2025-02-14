@@ -1,10 +1,30 @@
 on:
-  workflow_call:
-    inputs:
-      version:
-        required: true
-        type: string
+  push:
+    branches:
+      - main
 jobs:
+  get_build_version:
+    runs-on: ubuntu-latest
+    name: Get Build Version
+    outputs:
+      build_version: ${{ steps.check_build_ver.build_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Get build version
+        id: check_build_ver
+        run: |
+          if ls -a | grep -qE '^.build_version$'; then
+            if [[ -z "$(cat .build_version)" ]]; then
+              echo "Build version not specified"
+              exit 1
+            fi
+            echo "build_version=$(cat .build_version)" >> $GITHUB_OUTPUT
+          else
+            echo ".build_version file not found"
+            exit 1
+          fi
   check_build_required:
     runs-on: ubuntu-latest
     name: Check If Build Required
@@ -23,7 +43,7 @@ jobs:
             echo "compile_required=false" >> $GITHUB_OUTPUT
           fi
   build_go_mods:
-    needs: [check_build_required]
+    needs: [get_build_version, check_build_required]
     if: needs.check_build_required.outputs.compile_required == 'true'
     runs-on: ubuntu-latest
     name: Build Go action binaries
@@ -39,7 +59,9 @@ jobs:
       - name: Install dependencies
         run: go get .
       - name: Build
-        run: go build -o action-linux-${{ matrix.arch }}-${{ inputs.version }} .
+        env:
+          BUILD_VER: ${{ needs.get_build_version.outputs.build_version }}
+        run: go build -o action-linux-${{ matrix.arch }}-$BUILD_VER .
       - uses: actions/upload-artifact@v4
         with:
           name: action-linux-${{ matrix.arch }}-${{ inputs.version }}
