@@ -1,0 +1,33 @@
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  get_build_version:
+    runs-on: ubuntu-latest
+    name: Get Build Version
+    outputs:
+      build_version: ${{ steps.check_build_ver.build_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Get build version
+        id: check_build_ver
+        run: |
+          if ls -a | grep -qE '^.build_version$'; then
+            if [[ -z "$(cat .build_version)" ]]; then
+              echo "Build version not specified"
+              exit 1
+            fi
+            echo "build_version=$(cat .build_version)" >> $GITHUB_OUTPUT
+          else
+            echo ".build_version file not found"
+            exit 1
+          fi
+  build_go_bins:
+    needs: [get_build_version]
+    uses: ./.github/workflows/buildgo.yaml
+    with: 
+      version: ${{ needs.get_build_version.outputs.build_version }}
