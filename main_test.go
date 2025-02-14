@@ -77,7 +77,7 @@ func TestParseArticleNoPhotos(t *testing.T) {
   articleFolder := "./test1"
   wantName := "testing"
   wantArticle := "test1/testing.md"
-  wantPhotos := ""
+  wantPhotos := "test1/photos"
   name, article, photos, err := parseArticle(articleFolder)
 
   if wantName != name || wantArticle != article || wantPhotos != photos || err != nil {
@@ -113,6 +113,23 @@ func TestCreateArticleStruct(t *testing.T) {
   }
 }
 
+func TestCreateArticleStructNoPhotos(t *testing.T) {
+  articleFolder := "./test1"
+  wantContent := "This is a test article simulating github but actually from local environement"
+  wantImages := []Image{}
+  wantArticleStruct := Article{Title: "testing", Content: wantContent, Images: wantImages, Path: filepath.Clean(articleFolder)}
+  name, article, photos, err := parseArticle(articleFolder)
+  if err != nil {
+    t.Fatalf("There was an error: %v", err)
+  }
+  artStruct, err := createArticlePayload(name, article, photos)
+  log.Printf("%v", artStruct)
+  if !compareArticles(artStruct, wantArticleStruct) || err != nil {
+    t.Fatalf(`createArticlePayload(%v) resulted in an unexpected output.
+      Got: %v 
+      Wanted: %v`, articleFolder, artStruct, wantArticleStruct)
+  }
+}
 func TestPostArticle(t *testing.T) {
   
 }

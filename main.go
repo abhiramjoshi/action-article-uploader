@@ -48,27 +48,32 @@ func init() {
 func main() {
   var folder string
   action := githubactions.New()
-  if os.Getenv("ENV") == "DEV" {
+  if os.Getenv("PLATFORM") != "GITHUB" {
     folder = "test"
   }else{
     folder = action.GetInput("article_folder")
+    logger.Debug(fmt.Sprintf("Getting input from Github Input: %v", folder))
   }
 	articleName, articleFilepath, articlePhotos, err := parseArticle(folder)
 	if err != nil {
 		logger.Error("There was an error parsing the article folder","error", err)
+    os.Exit(1)
 	}
 	article, _ := createArticlePayload(articleName, articleFilepath, articlePhotos)
 	if err != nil {
     logger.Error("There was an error creating the article payload","error",err)
+    os.Exit(1)
 	}
 	response, err := sendPostRequest(article)
 	if err != nil {
 		logger.Error("There was an error sending the post request","error", err)
+    os.Exit(1)
 	}
 	defer response.Body.Close()
   body, err := io.ReadAll(response.Body)
 	if err != nil {
 		logger.Error("Error reading response body","error", err)
+    os.Exit(1)
 	}
   logger.Info("Recieved response","status", *&response.Status ,"body", string(body))
 	logger.Debug(fmt.Sprintf("%v, %v, %v, %v", folder, articleFilepath, articleName, articlePhotos))
@@ -90,7 +95,7 @@ func parseArticle(articleFolder string) (string, string, string, error) {
 
 	folderFiles, err := os.ReadDir(articleFolder)
 	if err != nil {
-		panic(err)
+		return "", "", "", err
 	}
 
 	var articleFile string = ""
@@ -164,9 +169,13 @@ func createArticlePayload(articleName string, articleFile string, articlePhotos 
 	content := strings.ReplaceAll(string(data), "\r\n", " ")
 	content = strings.ReplaceAll(content, "\n", " ")
 	content = strings.TrimSpace(content)
-	//Parse images
+	
+  //Parse images
 	imageFiles, err := os.ReadDir(articlePhotos)
-	if err != nil {
+	if articlePhotos == "" {
+
+  }else if os.IsNotExist(err) {
+    logger.Debug("No images attached to article")
 		return Article{}, err
 	}
 	var images []Image
