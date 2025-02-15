@@ -1,8 +1,15 @@
 const childProcess = require('child_process')
 const os = require('os')
 const process = require('process')
+const fs = require('fs')
 
-const VERSION = 'v1'
+var VERSION
+try {
+  VERSION = fs.readFileSync("./.build_version")
+} catch (err) {
+  console.error(err)
+  process.exit(1)
+}
 
 function chooseBinary() {
     const platform = os.platform()
