@@ -1,9 +1,8 @@
 const childProcess = require('child_process');
 const os = require('os');
 const process = require('process');
-const core = require('@actions/core');
 
-const VERSION = core.getInput('version')
+const VERSION = process.env.INPUT_VERSION
 if (VERSION == '') {
   console.error("There was an error getting the action version")
   process.exit(1)
