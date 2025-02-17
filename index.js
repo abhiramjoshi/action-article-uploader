@@ -3,7 +3,7 @@ const os = require('os');
 const process = require('process');
 
 const VERSION = process.env.INPUT_VERSION
-if (VERSION == '') {
+if (VERSION == null) {
   console.error("There was an error getting the action version")
   process.exit(1)
 }
