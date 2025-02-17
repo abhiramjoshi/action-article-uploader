@@ -134,7 +134,17 @@ func sendPostRequest(article Article) (*http.Response, error) {
   if !exists {
     return nil, fmt.Errorf("Endpoint not provided, please set the ENDPOINT env variable")
   }
-  url := "http://" + base_url + "/" + post_endpoint
+
+  env := os.Getenv("ENV")
+  if len(env) == 0 {
+    env = "PROD"
+  }
+  protocol := "https://"
+  if env == "DEV" {
+    protocol = "http://"
+  }
+
+  url := protocol + base_url + "/" + post_endpoint
   logger.Debug(fmt.Sprintf("Sending request to: %v", url))
 	// Need to handle authentication, this can be just simple authentication in our case.
 	user := os.Getenv("USERNAME")

@@ -4,6 +4,10 @@ inputs:
   article_folder:
     description: "Folder for article that needs to be uploaded"
     required: true
+  version:
+    description: "Version of the action to be run"
+    required: false
+    default: "v0_1_1"
 outputs:
   status:
     description: "Status of article upload API request"

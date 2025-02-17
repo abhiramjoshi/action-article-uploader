@@ -1,13 +1,11 @@
-const childProcess = require('child_process')
-const os = require('os')
-const process = require('process')
-const fs = require('fs')
+const childProcess = require('child_process');
+const os = require('os');
+const process = require('process');
+const core = require('@actions/core');
 
-var VERSION
-try {
-  VERSION = fs.readFileSync("./.build_version")
-} catch (err) {
-  console.error(err)
+const VERSION = core.getInput('version')
+if (VERSION == '') {
+  console.error("There was an error getting the action version")
   process.exit(1)
 }
 
