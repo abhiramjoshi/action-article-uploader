@@ -5,78 +5,92 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
+	githubactions "github.com/sethvargo/go-githubactions"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	githubactions "github.com/sethvargo/go-githubactions"
 )
+
 var logger *slog.Logger
 
 type Image struct {
-	Filename string `json:"filename"`
+	Filename string  `json:"filename"`
 	Data     *string `json:"data"`
+	Filepath string  `json:"-"`
 }
 
 type Article struct {
 	Title   string  `json:"title"`
 	Path    string  `json:"-"`
 	Images  []Image `json:"images"`
-	Content string  `json:"content"`
+	Content string  `json:"contents"`
 }
 
 func init() {
-  env := os.Getenv("ENV")
-  if len(env) == 0 {
-    env = "PROD"
-  }
+	env := os.Getenv("ENV")
+	if len(env) == 0 {
+		env = "PROD"
+	}
 
-  var level slog.Level
-  if env == "DEV" {
-    level = slog.LevelDebug
-  } else {
-    level = slog.LevelWarn
-  }
-  handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-    Level: level,
-  })
-  logger = slog.New(handler)
+	var level slog.Level
+	if env == "DEV" {
+		level = slog.LevelDebug
+	} else {
+		level = slog.LevelWarn
+	}
+	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: level,
+	})
+	logger = slog.New(handler)
 }
 
 func main() {
-  var folder string
-  action := githubactions.New()
-  if os.Getenv("PLATFORM") != "GITHUB" {
-    folder = "test"
-  }else{
-    folder = action.GetInput("article_folder")
-    logger.Debug(fmt.Sprintf("Getting input from Github Input: %v", folder))
-  }
+	var folder string
+	action := githubactions.New()
+	if os.Getenv("PLATFORM") != "GITHUB" {
+		folder = "test"
+	} else {
+		folder = action.GetInput("article_folder")
+		logger.Debug(fmt.Sprintf("Getting input from Github Input: %v", folder))
+	}
 	articleName, articleFilepath, articlePhotos, err := parseArticle(folder)
 	if err != nil {
-		logger.Error("There was an error parsing the article folder","error", err)
-    os.Exit(1)
+		logger.Error("There was an error parsing the article folder", "error", err)
+		os.Exit(1)
 	}
 	article, _ := createArticlePayload(articleName, articleFilepath, articlePhotos)
 	if err != nil {
-    logger.Error("There was an error creating the article payload","error",err)
-    os.Exit(1)
+		logger.Error("There was an error creating the article payload", "error", err)
+		os.Exit(1)
 	}
 	response, err := sendPostRequest(article)
 	if err != nil {
-		logger.Error("There was an error sending the post request","error", err)
-    os.Exit(1)
+		logger.Error("There was an error sending the post request", "error", err)
+		os.Exit(1)
 	}
 	defer response.Body.Close()
-  body, err := io.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		logger.Error("Error reading response body","error", err)
-    os.Exit(1)
+		logger.Error("Error reading response body", "error", err)
+		os.Exit(1)
 	}
-  logger.Info("Recieved response","status", *&response.Status ,"body", string(body))
+	logger.Info("Recieved response", "status", *&response.Status, "body", string(body))
 	logger.Debug(fmt.Sprintf("%v, %v, %v, %v", folder, articleFilepath, articleName, articlePhotos))
+}
+
+func checkIfImage(imageData []byte) (bool) {
+  mimeType := http.DetectContentType(imageData)
+  logger.Info(fmt.Sprintf("Image is of type: %v", mimeType))
+  imageMimes := []string{"image/jpeg", "image/png", "image/gif"}
+  for _, imageType := range imageMimes {
+    if mimeType == imageType {
+      return true
+    }
+  }
+  return false
 }
 
 // Read markdown files from folder that is passed through
@@ -131,25 +145,25 @@ func sendPostRequest(article Article) (*http.Response, error) {
 		return nil, fmt.Errorf("Base url does not exists, please set the BASE_DOMAIN env variable")
 	}
 	post_endpoint, exists := os.LookupEnv("ENDPOINT")
-  if !exists {
-    return nil, fmt.Errorf("Endpoint not provided, please set the ENDPOINT env variable")
-  }
+	if !exists {
+		return nil, fmt.Errorf("Endpoint not provided, please set the ENDPOINT env variable")
+	}
 
-  env := os.Getenv("ENV")
-  if len(env) == 0 {
-    env = "PROD"
-  }
-  protocol := "https://"
-  if env == "DEV" {
-    protocol = "http://"
-  }
+	env := os.Getenv("ENV")
+	if len(env) == 0 {
+		env = "PROD"
+	}
+	protocol := "https://"
+	if env == "DEV" {
+		protocol = "http://"
+	}
 
-  url := protocol + base_url + "/" + post_endpoint
-  logger.Debug(fmt.Sprintf("Sending request to: %v", url))
+	url := protocol + base_url + "/" + post_endpoint
+	logger.Debug(fmt.Sprintf("Sending request to: %v", url))
 	// Need to handle authentication, this can be just simple authentication in our case.
 	user := os.Getenv("USERNAME")
 	pass := os.Getenv("PASSWORD")
-  auth := user + ":" + pass
+	auth := user + ":" + pass
 	basicAuth := b64.StdEncoding.EncodeToString([]byte(auth))
 
 	body, err := json.Marshal(article)
@@ -161,11 +175,11 @@ func sendPostRequest(article Article) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
 	req.Header.Add("Authorization", "Basic "+basicAuth)
 	req.Header.Add("Content-Type", "application/json")
-  resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Error sending article creation request: %v", err)
 	}
-  
+
 	return resp, nil
 }
 
@@ -179,21 +193,56 @@ func createArticlePayload(articleName string, articleFile string, articlePhotos 
 	content := strings.ReplaceAll(string(data), "\r\n", " ")
 	content = strings.ReplaceAll(content, "\n", " ")
 	content = strings.TrimSpace(content)
-	
-  //Parse images
+
+	//Parse images
 	imageFiles, err := os.ReadDir(articlePhotos)
 	if articlePhotos == "" {
 
-  }else if os.IsNotExist(err) {
-    logger.Debug("No images attached to article")
+	} else if os.IsNotExist(err) {
+		logger.Debug("No images attached to article")
 		return Article{}, err
 	}
 	var images []Image
 	for _, image := range imageFiles {
-		ext := filepath.Ext(image.Name())
-		imageName := strings.TrimRight(image.Name(), ext)
-		images = append(images, Image{Filename: imageName, Data: nil})
+    imagePayload, err := createImagePayload(filepath.Join(articlePhotos, image.Name()))
+		if err != nil {
+      return Article{}, err
+    }
+    //ext := filepath.Ext(image.Name())
+		//imageName := strings.TrimRight(image.Name(), ext)
+		images = append(images, imagePayload)
 	}
 
 	return Article{Title: articleName, Content: content, Images: images, Path: filepath.Dir(articleFile)}, nil
+}
+
+func createImagePayload(imageFile string) (Image, error) {
+  image,err := os.Stat(imageFile)
+  if err != nil {
+    return Image{}, fmt.Errorf("Error getting image info: %v", err)
+  }
+	ext := filepath.Ext(image.Name())
+	imageName := strings.TrimRight(image.Name(), ext)
+  raw_data, err := os.ReadFile(imageFile)
+  if err != nil {
+    if os.IsNotExist(err) {
+      return Image{}, fmt.Errorf("Error: Image %v does not exist", imageFile)
+    }
+    return Image{Filename: imageName, Data: nil}, nil
+  }
+  if !checkIfImage(raw_data) {
+    logger.Info(fmt.Sprintf("Provided image file: %v is not a valid image", imageFile))
+    return Image{Filename: imageName, Data: nil}, nil
+  }
+  data := b64.StdEncoding.EncodeToString(raw_data)
+  return Image{Filename: imageName, Data: &data}, nil
+}
+
+func uploadArticleImages(imageUrls []string, images []Image) (*http.Response, error) {
+  for i, imageUrl := range imageUrls {
+    // We essentailly need to send a post request to our returned url so that an image can be uploaded
+    fmt.Print(imageUrl)
+    fmt.Print(images[i])
+  }
+  return nil, nil
 }
