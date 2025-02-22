@@ -54,14 +54,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./bins/
-      - name: Make bins executable
-        run: |
-          git update-index --chmod=+x bins/*/*
+      #- name: Make bins executable
+      #  run: |
+      #    git update-index --chmod=+x bins/*/*
       - name: Commit
         uses: EndBug/add-and-commit@v9
         with:
           message: Github Actions Go build binaries for ${{ inputs.version }}
           committer_name: Github Actions
           committer_email: actionbot@github.com
-          add: 'bins/*'
+          add: '--chmod=+x bins/*'
 
