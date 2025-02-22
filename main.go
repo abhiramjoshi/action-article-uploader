@@ -26,7 +26,7 @@ type Article struct {
 	Title   string  `json:"title"`
 	Path    string  `json:"-"`
 	Images  []Image `json:"images"`
-	Content string  `json:"contents"`
+	Content string  `json:"content"`
 }
 
 func init() {
@@ -66,6 +66,10 @@ func main() {
 		logger.Error("There was an error creating the article payload", "error", err)
 		os.Exit(1)
 	}
+  if os.Getenv("DRYRUN") == "true" {
+    logger.Debug("Not sending POST request in dry run")
+    os.Exit(0)
+  }
 	response, err := sendPostRequest(article)
 	if err != nil {
 		logger.Error("There was an error sending the post request", "error", err)
@@ -120,7 +124,7 @@ func parseArticle(articleFolder string) (string, string, string, error) {
 		logger.Debug(fmt.Sprintf("File extension is: %v", filepath.Ext(file.Name())))
 		if filepath.Ext(file.Name()) == ".md" {
 			articleFile = file.Name()
-			articleName = strings.TrimRight(file.Name(), ".md")
+			articleName = strings.TrimSuffix(file.Name(), ".md")
 		}
 	}
 
@@ -170,7 +174,7 @@ func sendPostRequest(article Article) (*http.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("There was an error formatting the post body: %v", err)
 	}
-	logger.Debug(fmt.Sprintf("Article post request: %v", string(body)))
+	//logger.Debug(fmt.Sprintf("Article post request: %v", string(body)))
 	// send post request
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
 	req.Header.Add("Authorization", "Basic "+basicAuth)
@@ -203,16 +207,23 @@ func createArticlePayload(articleName string, articleFile string, articlePhotos 
 		return Article{}, err
 	}
 	var images []Image
+  var attachedImages []string
 	for _, image := range imageFiles {
+    logger.Debug(fmt.Sprintf("Create image paycload for image %v", image))
     imagePayload, err := createImagePayload(filepath.Join(articlePhotos, image.Name()))
-		if err != nil {
-      return Article{}, err
+		// Over here, there is a potential to send nil data images and upload them later.
+    if err != nil {
+      logger.Debug(fmt.Sprintf("There was an error creating payload for image, skipping. Error: %v", err))
+      continue
     }
     //ext := filepath.Ext(image.Name())
-		//imageName := strings.TrimRight(image.Name(), ext)
-		images = append(images, imagePayload)
+		//imageName := strings.TrimSuffix(image.Name(), ext)
+		logger.Debug("Image payload created and added to images")
+    logger.Debug(fmt.Sprintf("Images to be sent are: %v", attachedImages))
+    attachedImages = append(attachedImages, imagePayload.Filename)
+    images = append(images, imagePayload)
 	}
-
+  logger.Debug(fmt.Sprintf("Successfully created article payload for %v", articleName))
 	return Article{Title: articleName, Content: content, Images: images, Path: filepath.Dir(articleFile)}, nil
 }
 
@@ -221,8 +232,12 @@ func createImagePayload(imageFile string) (Image, error) {
   if err != nil {
     return Image{}, fmt.Errorf("Error getting image info: %v", err)
   }
+  logger.Debug(fmt.Sprintf("Checking image %v", imageFile))
 	ext := filepath.Ext(image.Name())
-	imageName := strings.TrimRight(image.Name(), ext)
+	imageName := strings.TrimSuffix(image.Name(), ext)
+  logger.Debug(fmt.Sprintf(`Image File: %v
+    Image Extension: %v
+    Image Name: %v`, imageFile, ext, imageName))
   raw_data, err := os.ReadFile(imageFile)
   if err != nil {
     if os.IsNotExist(err) {
@@ -230,19 +245,76 @@ func createImagePayload(imageFile string) (Image, error) {
     }
     return Image{Filename: imageName, Data: nil}, nil
   }
+  logger.Debug("Checking if image is a valid image file")
   if !checkIfImage(raw_data) {
-    logger.Info(fmt.Sprintf("Provided image file: %v is not a valid image", imageFile))
+    logger.Info(fmt.Sprintf("Provided image file: %v is not a valid image, image will be added with dummy data", imageFile))
     return Image{Filename: imageName, Data: nil}, nil
   }
+  logger.Debug("Image is valid")
   data := b64.StdEncoding.EncodeToString(raw_data)
   return Image{Filename: imageName, Data: &data}, nil
 }
 
-func uploadArticleImages(imageUrls []string, images []Image) (*http.Response, error) {
+func sendImageUpdate(url string, image Image) (*http.Response, error) {
+	//base_url, exists := os.LookupEnv("BASE_DOMAIN")
+	//if !exists {
+	//	return nil, fmt.Errorf("Base url does not exists, please set the BASE_DOMAIN env variable")
+	//}
+	//post_endpoint, exists := os.LookupEnv("ENDPOINT")
+	//if !exists {
+	//	return nil, fmt.Errorf("Endpoint not provided, please set the ENDPOINT env variable")
+	//}
+
+	//env := os.Getenv("ENV")
+	//if len(env) == 0 {
+	//	env = "PROD"
+	//}
+	//protocol := "https://"
+	//if env == "DEV" {
+	//	protocol = "http://"
+	//}
+
+	logger.Debug(fmt.Sprintf("Sending request to: %v", url))
+	// Need to handle authentication, this can be just simple authentication in our case.
+	user := os.Getenv("USERNAME")
+	pass := os.Getenv("PASSWORD")
+	auth := user + ":" + pass
+	basicAuth := b64.StdEncoding.EncodeToString([]byte(auth))
+
+	body, err := json.Marshal(image)
+	if err != nil {
+		return nil, fmt.Errorf("There was an error formatting the post body: %v", err)
+	}
+	//logger.Debug(fmt.Sprintf("Article post request: %v", string(body)))
+	// send post request
+	req, err := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer(body))
+	req.Header.Add("Authorization", "Basic "+basicAuth)
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Error sending article creation request: %v", err)
+	}
+
+	return resp, nil
+}
+
+func uploadArticleImages(imageUrls []string, images []Image) {
   for i, imageUrl := range imageUrls {
     // We essentailly need to send a post request to our returned url so that an image can be uploaded
+    logger.Debug(fmt.Sprintf("Uploading image %v with image data", images[i].Filename))
     fmt.Print(imageUrl)
     fmt.Print(images[i])
+    resp, err := sendImageUpdate(imageUrl, images[i])
+    if err != nil {
+      logger.Debug(fmt.Sprintf("There was an error updating image at %v", imageUrl))
+      continue
+    }
+    defer resp.Body.Close()
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+      logger.Debug(fmt.Sprintf("There was an error reading the response body from the update action"))
+      continue
+    }
+    logger.Info("Image upload response", "status", resp.Status, "body", string(body))
   }
-  return nil, nil
 }

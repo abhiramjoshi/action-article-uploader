@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -109,7 +110,9 @@ func TestCreateArticleStruct(t *testing.T) {
   artStruct, err := createArticlePayload(name, article, photos)
   log.Printf("%v", artStruct)
   if !compareArticles(artStruct, wantArticleStruct) || err != nil {
-    t.Fatalf(`createArticlePayload(%v) resulted in an unexpected output.\n Wanted: %v\nGot: %v`, articleFolder, artStruct, wantArticleStruct)
+    t.Fatalf(`createArticlePayload(%v) resulted in an unexpected output.
+      Wanted: %v
+      Got: %v`, articleFolder, wantArticleStruct, artStruct)
   }
 }
 
@@ -130,6 +133,55 @@ func TestCreateArticleStructNoPhotos(t *testing.T) {
       Wanted: %v`, articleFolder, artStruct, wantArticleStruct)
   }
 }
-func TestPostArticle(t *testing.T) {
-  
+
+func TestCheckIfImageJPEG(t *testing.T) {
+  imageFile := "./testimages/test_jpeg.jpg"
+  data, err := os.ReadFile(imageFile)
+  if err != nil {
+    t.Fatalf(`Error in loading image: %v`, err)
+  }
+  imageType := checkIfImage(data)
+  log.Printf("Image type is: %v", imageType)
+  if !imageType {
+    t.Fatalf(`checkIfImage(%v) expected image/jpeg (true) but got: %v`, imageFile, imageType)
+  }
+}
+
+func TestCheckIfImagePNG(t *testing.T) {
+  imageFile := "./testimages/test_image.png"
+  data, err := os.ReadFile(imageFile)
+  if err != nil {
+    t.Fatalf(`Error in loading image: %v`, err)
+  }
+  imageType := checkIfImage(data)
+  log.Printf("Image type is: %v", imageType)
+  if !imageType {
+    t.Fatalf(`checkIfImage(%v) expected image/png (true) but got: %v`, imageFile, imageType)
+  }
+}
+
+func TestCheckIfImageGIF(t *testing.T) {
+  imageFile := "./testimages/test_gif.gif"
+  data, err := os.ReadFile(imageFile)
+  if err != nil {
+    t.Fatalf(`Error in loading image: %v`, err)
+  }
+  imageType := checkIfImage(data)
+  log.Printf("Image type is: %v", imageType)
+  if !imageType {
+    t.Fatalf(`checkIfImage(%v) expected image/gif (true) but got: %v`, imageFile, imageType)
+  }
+}
+
+func TestCheckIfImageNot(t *testing.T) {
+  imageFile := "./test/testing.md"
+  data, err := os.ReadFile(imageFile)
+  if err != nil {
+    t.Fatalf(`Error in loading image: %v`, err)
+  }
+  imageType := checkIfImage(data)
+  log.Printf("Image type is: %v", imageType)
+  if imageType {
+    t.Fatalf(`checkIfImage(%v) expected false but got: %v`, imageFile, imageType)
+  }
 }
