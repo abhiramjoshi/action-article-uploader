@@ -298,6 +298,7 @@ func sendImageUpdate(url string, image Image) (*http.Response, error) {
 	return resp, nil
 }
 
+
 func uploadArticleImages(imageUrls []string, images []Image) {
   for i, imageUrl := range imageUrls {
     // We essentailly need to send a post request to our returned url so that an image can be uploaded
