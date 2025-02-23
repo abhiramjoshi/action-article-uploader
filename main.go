@@ -220,10 +220,10 @@ func createArticlePayload(articleName string, articleFile string, articlePhotos 
     //ext := filepath.Ext(image.Name())
 		//imageName := strings.TrimSuffix(image.Name(), ext)
 		logger.Debug("Image payload created and added to images")
-    logger.Debug(fmt.Sprintf("Images to be sent are: %v", attachedImages))
     attachedImages = append(attachedImages, imagePayload.Filename)
     images = append(images, imagePayload)
 	}
+  logger.Debug(fmt.Sprintf("Images to be sent are: %v", attachedImages))
   logger.Debug(fmt.Sprintf("Successfully created article payload for %v", articleName))
 	return Article{Title: title, Content: content, Images: images, Path: filepath.Dir(articleFile)}, nil
 }
