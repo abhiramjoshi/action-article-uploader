@@ -193,10 +193,11 @@ func createArticlePayload(articleName string, articleFile string, articlePhotos 
 	if err != nil {
 		return Article{}, fmt.Errorf("Error reading file: %v", err)
 	}
+  title := strings.ReplaceAll(articleName, "_", " ")
 
-	content := strings.ReplaceAll(string(data), "\r\n", " ")
-	content = strings.ReplaceAll(content, "\n", " ")
-	content = strings.TrimSpace(content)
+  //content := strings.ReplaceAll(string(data), "\r\n", " ")
+	//content = strings.ReplaceAll(content, "\n", " ")
+  content := strings.TrimSpace(string(data))
 
 	//Parse images
 	imageFiles, err := os.ReadDir(articlePhotos)
@@ -224,7 +225,7 @@ func createArticlePayload(articleName string, articleFile string, articlePhotos 
     images = append(images, imagePayload)
 	}
   logger.Debug(fmt.Sprintf("Successfully created article payload for %v", articleName))
-	return Article{Title: articleName, Content: content, Images: images, Path: filepath.Dir(articleFile)}, nil
+	return Article{Title: title, Content: content, Images: images, Path: filepath.Dir(articleFile)}, nil
 }
 
 func createImagePayload(imageFile string) (Image, error) {

@@ -134,6 +134,24 @@ func TestCreateArticleStructNoPhotos(t *testing.T) {
   }
 }
 
+func TestCreateArticleStructSpaceTitleAndMultiline(t *testing.T) {
+  articleFolder := "./test3"
+  wantContent := "This is a test article simulating github but actually from local environement\nHello"
+  wantImages := []Image{}
+  wantArticleStruct := Article{Title: "testing 3", Content: wantContent, Images: wantImages, Path: filepath.Clean(articleFolder)}
+  name, article, photos, err := parseArticle(articleFolder)
+  if err != nil {
+    t.Fatalf("There was an error: %v", err)
+  }
+  artStruct, err := createArticlePayload(name, article, photos)
+  log.Printf("%v", artStruct)
+  if !compareArticles(artStruct, wantArticleStruct) || err != nil {
+    t.Fatalf(`createArticlePayload(%v) resulted in an unexpected output.
+      Got: %v 
+      Wanted: %v`, articleFolder, artStruct, wantArticleStruct)
+  }
+}
+
 func TestCheckIfImageJPEG(t *testing.T) {
   imageFile := "./testimages/test_jpeg.jpg"
   data, err := os.ReadFile(imageFile)
