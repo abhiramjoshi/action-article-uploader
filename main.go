@@ -82,7 +82,8 @@ func main() {
 		os.Exit(1)
 	}
 	logger.Info("Recieved response", "status", *&response.Status, "body", string(body))
-	logger.Debug(fmt.Sprintf("%v, %v, %v, %v", folder, articleFilepath, articleName, articlePhotos))
+  fmt.Printf("Recieved response: status: %v body: %v", response.Status, string(body))
+  logger.Debug(fmt.Sprintf("%v, %v, %v, %v", folder, articleFilepath, articleName, articlePhotos))
 }
 
 func checkIfImage(imageData []byte) (bool) {

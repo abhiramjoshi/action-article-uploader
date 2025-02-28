@@ -7,7 +7,7 @@ inputs:
   version:
     description: "Version of the action to be run"
     required: false
-    default: "v0_1_3" #Change value in .build_version
+    default: "v0_1_4" #Change value in .build_version
 outputs:
   status:
     description: "Status of article upload API request"
