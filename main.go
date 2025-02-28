@@ -5,13 +5,14 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
-	githubactions "github.com/sethvargo/go-githubactions"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	githubactions "github.com/sethvargo/go-githubactions"
 )
 
 var logger *slog.Logger
@@ -23,6 +24,7 @@ type Image struct {
 }
 
 type Article struct {
+	ID      *int    `json:"id,omitempty"`
 	Title   string  `json:"title"`
 	Path    string  `json:"-"`
 	Images  []Image `json:"images"`
@@ -48,6 +50,7 @@ func init() {
 }
 
 func main() {
+	// Get article folder
 	var folder string
 	action := githubactions.New()
 	if os.Getenv("PLATFORM") != "GITHUB" {
@@ -56,6 +59,7 @@ func main() {
 		folder = action.GetInput("article_folder")
 		logger.Debug(fmt.Sprintf("Getting input from Github Input: %v", folder))
 	}
+	// Parse article folder to create article payload
 	articleName, articleFilepath, articlePhotos, err := parseArticle(folder)
 	if err != nil {
 		logger.Error("There was an error parsing the article folder", "error", err)
@@ -66,15 +70,28 @@ func main() {
 		logger.Error("There was an error creating the article payload", "error", err)
 		os.Exit(1)
 	}
-  if os.Getenv("DRYRUN") == "true" {
-    logger.Debug("Not sending POST request in dry run")
-    os.Exit(0)
-  }
-	response, err := sendPostRequest(article)
+	if os.Getenv("DRYRUN") == "true" {
+		logger.Debug("Not sending POST request in dry run")
+		os.Exit(0)
+	}
+	// Check if article exists
+	exists, err := checkIfArticleExists(article)
 	if err != nil {
-		logger.Error("There was an error sending the post request", "error", err)
+		logger.Error("There was an error checking if article exists", "error", err)
 		os.Exit(1)
 	}
+	// If exists, send put request
+	var response *http.Response
+	if exists {
+		// send put/patch to update article
+	} else {
+		response, err = sendPostRequest(article)
+		if err != nil {
+			logger.Error("There was an error sending the post request", "error", err)
+			os.Exit(1)
+		}
+	}
+	// If not exists, send post request
 	defer response.Body.Close()
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -82,20 +99,20 @@ func main() {
 		os.Exit(1)
 	}
 	logger.Info("Recieved response", "status", *&response.Status, "body", string(body))
-  fmt.Printf("Recieved response: status: %v body: %v", response.Status, string(body))
-  logger.Debug(fmt.Sprintf("%v, %v, %v, %v", folder, articleFilepath, articleName, articlePhotos))
+	fmt.Printf("Recieved response: status: %v body: %v", response.Status, string(body))
+	logger.Debug(fmt.Sprintf("%v, %v, %v, %v", folder, articleFilepath, articleName, articlePhotos))
 }
 
-func checkIfImage(imageData []byte) (bool) {
-  mimeType := http.DetectContentType(imageData)
-  logger.Info(fmt.Sprintf("Image is of type: %v", mimeType))
-  imageMimes := []string{"image/jpeg", "image/png", "image/gif"}
-  for _, imageType := range imageMimes {
-    if mimeType == imageType {
-      return true
-    }
-  }
-  return false
+func checkIfImage(imageData []byte) bool {
+	mimeType := http.DetectContentType(imageData)
+	logger.Info(fmt.Sprintf("Image is of type: %v", mimeType))
+	imageMimes := []string{"image/jpeg", "image/png", "image/gif"}
+	for _, imageType := range imageMimes {
+		if mimeType == imageType {
+			return true
+		}
+	}
+	return false
 }
 
 // Read markdown files from folder that is passed through
@@ -143,6 +160,53 @@ func parseArticle(articleFolder string) (string, string, string, error) {
 	return articleName, articleFilepath, articlePhotos, nil
 }
 
+func checkIfArticleExists(article Article) (bool, error) {
+	// Send get request to check if article exists
+	base_url, exists := os.LookupEnv("BASE_DOMAIN")
+	if !exists {
+		return false, fmt.Errorf("Base url does not exists, please set the BASE_DOMAIN env variable")
+	}
+	get_endpoint, exists := os.LookupEnv("GET_ENDPOINT")
+	if !exists {
+		return false, fmt.Errorf("Endpoint not provided, please set the ENDPOINT env variable")
+	}
+
+	env := os.Getenv("ENV")
+	if len(env) == 0 {
+		env = "PROD"
+	}
+	protocol := "https://"
+	if env == "DEV" {
+		protocol = "http://"
+	}
+
+	url := protocol + base_url + "/" + get_endpoint
+	resp, err := http.Get(url)
+	if err != nil {
+		logger.Error("There was an error requesting articles")
+		return false, err
+	}
+	response, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Error("There was an issue reading the response body")
+		return false, err
+	}
+
+	var articles []Article
+	json.Unmarshal(response, &articles)
+
+	for i := 0; i < len(articles); i++ {
+		if article.Title == articles[i].Title {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func sendPutRequest(article Article) (*http.Response, error) {
+  // Put request logic
+  return nil, nil
+}
 // Send POST request cont. article payload to site
 func sendPostRequest(article Article) (*http.Response, error) {
 	base_url, exists := os.LookupEnv("BASE_DOMAIN")
@@ -194,11 +258,11 @@ func createArticlePayload(articleName string, articleFile string, articlePhotos 
 	if err != nil {
 		return Article{}, fmt.Errorf("Error reading file: %v", err)
 	}
-  title := strings.ReplaceAll(articleName, "_", " ")
+	title := strings.ReplaceAll(articleName, "_", " ")
 
-  //content := strings.ReplaceAll(string(data), "\r\n", " ")
+	//content := strings.ReplaceAll(string(data), "\r\n", " ")
 	//content = strings.ReplaceAll(content, "\n", " ")
-  content := strings.TrimSpace(string(data))
+	content := strings.TrimSpace(string(data))
 
 	//Parse images
 	imageFiles, err := os.ReadDir(articlePhotos)
@@ -209,52 +273,52 @@ func createArticlePayload(articleName string, articleFile string, articlePhotos 
 		return Article{}, err
 	}
 	var images []Image
-  var attachedImages []string
+	var attachedImages []string
 	for _, image := range imageFiles {
-    logger.Debug(fmt.Sprintf("Create image paycload for image %v", image))
-    imagePayload, err := createImagePayload(filepath.Join(articlePhotos, image.Name()))
+		logger.Debug(fmt.Sprintf("Create image paycload for image %v", image))
+		imagePayload, err := createImagePayload(filepath.Join(articlePhotos, image.Name()))
 		// Over here, there is a potential to send nil data images and upload them later.
-    if err != nil {
-      logger.Debug(fmt.Sprintf("There was an error creating payload for image, skipping. Error: %v", err))
-      continue
-    }
-    //ext := filepath.Ext(image.Name())
+		if err != nil {
+			logger.Debug(fmt.Sprintf("There was an error creating payload for image, skipping. Error: %v", err))
+			continue
+		}
+		//ext := filepath.Ext(image.Name())
 		//imageName := strings.TrimSuffix(image.Name(), ext)
 		logger.Debug("Image payload created and added to images")
-    attachedImages = append(attachedImages, imagePayload.Filename)
-    images = append(images, imagePayload)
+		attachedImages = append(attachedImages, imagePayload.Filename)
+		images = append(images, imagePayload)
 	}
-  logger.Debug(fmt.Sprintf("Images to be sent are: %v", attachedImages))
-  logger.Debug(fmt.Sprintf("Successfully created article payload for %v", articleName))
+	logger.Debug(fmt.Sprintf("Images to be sent are: %v", attachedImages))
+	logger.Debug(fmt.Sprintf("Successfully created article payload for %v", articleName))
 	return Article{Title: title, Content: content, Images: images, Path: filepath.Dir(articleFile)}, nil
 }
 
 func createImagePayload(imageFile string) (Image, error) {
-  image,err := os.Stat(imageFile)
-  if err != nil {
-    return Image{}, fmt.Errorf("Error getting image info: %v", err)
-  }
-  logger.Debug(fmt.Sprintf("Checking image %v", imageFile))
+	image, err := os.Stat(imageFile)
+	if err != nil {
+		return Image{}, fmt.Errorf("Error getting image info: %v", err)
+	}
+	logger.Debug(fmt.Sprintf("Checking image %v", imageFile))
 	ext := filepath.Ext(image.Name())
 	imageName := strings.TrimSuffix(image.Name(), ext)
-  logger.Debug(fmt.Sprintf(`Image File: %v
+	logger.Debug(fmt.Sprintf(`Image File: %v
     Image Extension: %v
     Image Name: %v`, imageFile, ext, imageName))
-  raw_data, err := os.ReadFile(imageFile)
-  if err != nil {
-    if os.IsNotExist(err) {
-      return Image{}, fmt.Errorf("Error: Image %v does not exist", imageFile)
-    }
-    return Image{Filename: imageName, Data: nil}, nil
-  }
-  logger.Debug("Checking if image is a valid image file")
-  if !checkIfImage(raw_data) {
-    logger.Info(fmt.Sprintf("Provided image file: %v is not a valid image, image will be added with dummy data", imageFile))
-    return Image{Filename: imageName, Data: nil}, nil
-  }
-  logger.Debug("Image is valid")
-  data := b64.StdEncoding.EncodeToString(raw_data)
-  return Image{Filename: imageName, Data: &data}, nil
+	raw_data, err := os.ReadFile(imageFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return Image{}, fmt.Errorf("Error: Image %v does not exist", imageFile)
+		}
+		return Image{Filename: imageName, Data: nil}, nil
+	}
+	logger.Debug("Checking if image is a valid image file")
+	if !checkIfImage(raw_data) {
+		logger.Info(fmt.Sprintf("Provided image file: %v is not a valid image, image will be added with dummy data", imageFile))
+		return Image{Filename: imageName, Data: nil}, nil
+	}
+	logger.Debug("Image is valid")
+	data := b64.StdEncoding.EncodeToString(raw_data)
+	return Image{Filename: imageName, Data: &data}, nil
 }
 
 func sendImageUpdate(url string, image Image) (*http.Response, error) {
@@ -300,24 +364,23 @@ func sendImageUpdate(url string, image Image) (*http.Response, error) {
 	return resp, nil
 }
 
-
 func uploadArticleImages(imageUrls []string, images []Image) {
-  for i, imageUrl := range imageUrls {
-    // We essentailly need to send a post request to our returned url so that an image can be uploaded
-    logger.Debug(fmt.Sprintf("Uploading image %v with image data", images[i].Filename))
-    fmt.Print(imageUrl)
-    fmt.Print(images[i])
-    resp, err := sendImageUpdate(imageUrl, images[i])
-    if err != nil {
-      logger.Debug(fmt.Sprintf("There was an error updating image at %v", imageUrl))
-      continue
-    }
-    defer resp.Body.Close()
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-      logger.Debug(fmt.Sprintf("There was an error reading the response body from the update action"))
-      continue
-    }
-    logger.Info("Image upload response", "status", resp.Status, "body", string(body))
-  }
+	for i, imageUrl := range imageUrls {
+		// We essentailly need to send a post request to our returned url so that an image can be uploaded
+		logger.Debug(fmt.Sprintf("Uploading image %v with image data", images[i].Filename))
+		fmt.Print(imageUrl)
+		fmt.Print(images[i])
+		resp, err := sendImageUpdate(imageUrl, images[i])
+		if err != nil {
+			logger.Debug(fmt.Sprintf("There was an error updating image at %v", imageUrl))
+			continue
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			logger.Debug(fmt.Sprintf("There was an error reading the response body from the update action"))
+			continue
+		}
+		logger.Info("Image upload response", "status", resp.Status, "body", string(body))
+	}
 }
