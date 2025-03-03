@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -202,4 +203,19 @@ func TestCheckIfImageNot(t *testing.T) {
   if imageType {
     t.Fatalf(`checkIfImage(%v) expected false but got: %v`, imageFile, imageType)
   }
+}
+
+func TestCheckIfArticleExists(t *testing.T) {
+  articleFolder := `./test/test1`
+  articleName, articleFile, articlePhotos, err := parseArticle(articleFolder)
+  article, err := createArticlePayload(articleName, articleFile, articlePhotos)
+  retArticle, err := checkIfArticleExists(article)
+  if err != nil {
+    t.Fatalf(`Error checking if article exists: %v`, err)
+  }
+  if retArticle == nil {
+    t.Fatalf(`No article match returned, even though requested article exists`)
+  }
+  t.Logf("returnedArticle ID: %v", *retArticle.ID)
+  fmt.Printf("returnedArticle ID: %v\n", *retArticle.ID)
 }

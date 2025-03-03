@@ -64,32 +64,35 @@ func main() {
 	if err != nil {
 		logger.Error("There was an error parsing the article folder", "error", err)
 		os.Exit(1)
-	}
-	article, _ := createArticlePayload(articleName, articleFilepath, articlePhotos)
-	if err != nil {
-		logger.Error("There was an error creating the article payload", "error", err)
-		os.Exit(1)
-	}
-	if os.Getenv("DRYRUN") == "true" {
-		logger.Debug("Not sending POST request in dry run")
-		os.Exit(0)
-	}
-	// Check if article exists
-	exists, err := checkIfArticleExists(article)
-	if err != nil {
-		logger.Error("There was an error checking if article exists", "error", err)
-		os.Exit(1)
-	}
-	// If exists, send put request
-	var response *http.Response
-	if exists {
-		// send put/patch to update article
+  }
+  article, err := createArticlePayload(articleName, articleFilepath, articlePhotos)
+  if err != nil {
+    logger.Error("There was an error creating the article payload", "error", err)
+    os.Exit(1)
+  }
+  if os.Getenv("DRYRUN") == "true" {
+    logger.Debug("Not sending POST request in dry run")
+    os.Exit(0)
+  }
+  // Check if article exists
+  existArticle, err := checkIfArticleExists(article)
+  if err != nil {
+    logger.Error("There was an error checking if article exists", "error", err)
+    os.Exit(1)
+  }
+
+  // If exists, send put request
+  var response *http.Response
+  if existArticle != nil {
+    logger.Debug("Article exists, so sending PATCH")
+		response, err = sendPutRequest(article, *existArticle.ID)
 	} else {
+    logger.Debug("Article does not exist, so sending POST")
 		response, err = sendPostRequest(article)
-		if err != nil {
-			logger.Error("There was an error sending the post request", "error", err)
-			os.Exit(1)
-		}
+	}
+	if err != nil {
+		logger.Error("There was an error sending the post request", "error", err)
+		os.Exit(1)
 	}
 	// If not exists, send post request
 	defer response.Body.Close()
@@ -160,15 +163,15 @@ func parseArticle(articleFolder string) (string, string, string, error) {
 	return articleName, articleFilepath, articlePhotos, nil
 }
 
-func checkIfArticleExists(article Article) (bool, error) {
+func checkIfArticleExists(article Article) (*Article, error) {
 	// Send get request to check if article exists
 	base_url, exists := os.LookupEnv("BASE_DOMAIN")
 	if !exists {
-		return false, fmt.Errorf("Base url does not exists, please set the BASE_DOMAIN env variable")
+		return nil, fmt.Errorf("Base url does not exists, please set the BASE_DOMAIN env variable")
 	}
 	get_endpoint, exists := os.LookupEnv("GET_ENDPOINT")
 	if !exists {
-		return false, fmt.Errorf("Endpoint not provided, please set the ENDPOINT env variable")
+		return nil, fmt.Errorf("Endpoint not provided, please set the ENDPOINT env variable")
 	}
 
 	env := os.Getenv("ENV")
@@ -184,28 +187,71 @@ func checkIfArticleExists(article Article) (bool, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		logger.Error("There was an error requesting articles")
-		return false, err
+		return nil, err
 	}
 	response, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logger.Error("There was an issue reading the response body")
-		return false, err
+		return nil, err
 	}
 
 	var articles []Article
 	json.Unmarshal(response, &articles)
-
+  //logger.Debug("Returned articles", "articles", fmt.Sprintf("%v", articles))
 	for i := 0; i < len(articles); i++ {
-		if article.Title == articles[i].Title {
-			return true, nil
+		logger.Debug("Checking articles for matches", "article1", article, "article2", articles[i])
+    if article.Title == articles[i].Title {
+			logger.Debug("Article titles matches", article.Title, articles[i].Title)
+      return &articles[i], nil
 		}
 	}
-	return false, nil
+  logger.Debug("There were no matching articles")
+	return nil, nil
 }
 
-func sendPutRequest(article Article) (*http.Response, error) {
+func sendPutRequest(article Article, id int) (*http.Response, error) {
   // Put request logic
-  return nil, nil
+	base_url, exists := os.LookupEnv("BASE_DOMAIN")
+	if !exists {
+		return nil, fmt.Errorf("Base url does not exists, please set the BASE_DOMAIN env variable")
+	}
+	post_endpoint, exists := os.LookupEnv("ENDPOINT")
+	if !exists {
+		return nil, fmt.Errorf("Endpoint not provided, please set the ENDPOINT env variable")
+	}
+
+	env := os.Getenv("ENV")
+	if len(env) == 0 {
+		env = "PROD"
+	}
+	protocol := "https://"
+	if env == "DEV" {
+		protocol = "http://"
+	}
+
+  url := protocol + base_url + "/" + post_endpoint + fmt.Sprintf("%d/", id)
+	logger.Debug(fmt.Sprintf("Sending request to: %v", url))
+	// Need to handle authentication, this can be just simple authentication in our case.
+	user := os.Getenv("USERNAME")
+	pass := os.Getenv("PASSWORD")
+	auth := user + ":" + pass
+	basicAuth := b64.StdEncoding.EncodeToString([]byte(auth))
+
+	body, err := json.Marshal(article)
+	if err != nil {
+		return nil, fmt.Errorf("There was an error formatting the post body: %v", err)
+	}
+	//logger.Debug(fmt.Sprintf("Article post request: %v", string(body)))
+	// send post request
+	req, err := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer(body))
+	req.Header.Add("Authorization", "Basic "+basicAuth)
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Error sending article update request: %v", err)
+	}
+
+	return resp, nil
 }
 // Send POST request cont. article payload to site
 func sendPostRequest(article Article) (*http.Response, error) {
