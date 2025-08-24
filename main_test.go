@@ -56,10 +56,10 @@ func compareArticles(a1 Article, a2 Article) bool {
 }
 
 func TestParseArticle(t *testing.T) {
-  articleFolder := "test"
+  articleFolder := "testgo"
   wantName := "testing"
-  wantArticle := "test/testing.md"
-  wantPhotos := "test/photos"
+  wantArticle := "testgo/testing.md"
+  wantPhotos := "testgo/photos"
   name, article, photos, err := parseArticle(articleFolder)
 
   if wantName != name || wantArticle != article || wantPhotos != photos || err != nil {
@@ -100,7 +100,7 @@ func TestParseArticleNoArticle(t *testing.T) {
 }
 
 func TestCreateArticleStruct(t *testing.T) {
-  articleFolder := "./test"
+  articleFolder := "./testgo"
   wantContent := "This is a test article ![testing](testimage)"
   wantImages := []Image{{Filename: "testimage", Data: nil}}
   wantArticleStruct := Article{Title: "testing", Content: wantContent, Images: wantImages, Path: filepath.Clean(articleFolder)}
@@ -109,7 +109,7 @@ func TestCreateArticleStruct(t *testing.T) {
     t.Fatalf("There was an error: %v", err)
   }
   artStruct, err := createArticlePayload(name, article, photos)
-  log.Printf("%v", artStruct)
+  t.Logf("%v", artStruct)
   if !compareArticles(artStruct, wantArticleStruct) || err != nil {
     t.Fatalf(`createArticlePayload(%v) resulted in an unexpected output.
       Wanted: %v
@@ -127,7 +127,7 @@ func TestCreateArticleStructNoPhotos(t *testing.T) {
     t.Fatalf("There was an error: %v", err)
   }
   artStruct, err := createArticlePayload(name, article, photos)
-  log.Printf("%v", artStruct)
+  t.Logf("%v", artStruct)
   if !compareArticles(artStruct, wantArticleStruct) || err != nil {
     t.Fatalf(`createArticlePayload(%v) resulted in an unexpected output.
       Got: %v 
@@ -145,7 +145,7 @@ func TestCreateArticleStructSpaceTitleAndMultiline(t *testing.T) {
     t.Fatalf("There was an error: %v", err)
   }
   artStruct, err := createArticlePayload(name, article, photos)
-  log.Printf("%v", artStruct)
+  t.Logf("%v", artStruct)
   if !compareArticles(artStruct, wantArticleStruct) || err != nil {
     t.Fatalf(`createArticlePayload(%v) resulted in an unexpected output.
       Got: %v 
@@ -160,7 +160,7 @@ func TestCheckIfImageJPEG(t *testing.T) {
     t.Fatalf(`Error in loading image: %v`, err)
   }
   imageType := checkIfImage(data)
-  log.Printf("Image type is: %v", imageType)
+  t.Logf("Image type is: %v", imageType)
   if !imageType {
     t.Fatalf(`checkIfImage(%v) expected image/jpeg (true) but got: %v`, imageFile, imageType)
   }
@@ -173,7 +173,7 @@ func TestCheckIfImagePNG(t *testing.T) {
     t.Fatalf(`Error in loading image: %v`, err)
   }
   imageType := checkIfImage(data)
-  log.Printf("Image type is: %v", imageType)
+  t.Logf("Image type is: %v", imageType)
   if !imageType {
     t.Fatalf(`checkIfImage(%v) expected image/png (true) but got: %v`, imageFile, imageType)
   }
@@ -186,26 +186,29 @@ func TestCheckIfImageGIF(t *testing.T) {
     t.Fatalf(`Error in loading image: %v`, err)
   }
   imageType := checkIfImage(data)
-  log.Printf("Image type is: %v", imageType)
+  t.Logf("Image type is: %v", imageType)
   if !imageType {
     t.Fatalf(`checkIfImage(%v) expected image/gif (true) but got: %v`, imageFile, imageType)
   }
 }
 
 func TestCheckIfImageNot(t *testing.T) {
-  imageFile := "./test/testing.md"
+  imageFile := "./testgo/testing.md"
   data, err := os.ReadFile(imageFile)
   if err != nil {
     t.Fatalf(`Error in loading image: %v`, err)
   }
   imageType := checkIfImage(data)
-  log.Printf("Image type is: %v", imageType)
+  t.Logf("Image type is: %v", imageType)
   if imageType {
     t.Fatalf(`checkIfImage(%v) expected false but got: %v`, imageFile, imageType)
   }
 }
 
 func TestCheckIfArticleExists(t *testing.T) {
+  if os.Getenv("BASE_DOMAIN") == "" {
+    t.Skip("Skipping API test")
+  }
   articleFolder := `./test/test1`
   articleName, articleFile, articlePhotos, err := parseArticle(articleFolder)
   article, err := createArticlePayload(articleName, articleFile, articlePhotos)

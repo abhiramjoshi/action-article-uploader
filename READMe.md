@@ -21,4 +21,9 @@ This go module, designed to be used as a CLI tool will allow us to automatically
 5. Go uploads each picture if it exists in the image directory of the article
 6. Finished, any cleanup required is complete
 
+### To build
+There is an automated CICD implemented in Github actions that will build a new `go` binary when changes are detected in `go` files, and push this binary to the bins directory. These files are than available for use in the actions
 
+To trigger this CICD build. Simply make changes to go files, specify a new version in the `.build_version` file and push the changes. 
+
+To skip a build on commit, push the commit with: `[skip actions]` in the commit message

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	githubactions "github.com/sethvargo/go-githubactions"
@@ -110,11 +111,9 @@ func checkIfImage(imageData []byte) bool {
 	mimeType := http.DetectContentType(imageData)
 	logger.Info(fmt.Sprintf("Image is of type: %v", mimeType))
 	imageMimes := []string{"image/jpeg", "image/png", "image/gif"}
-	for _, imageType := range imageMimes {
-		if mimeType == imageType {
-			return true
-		}
-	}
+	if slices.Contains(imageMimes, mimeType) {
+    return true
+  }
 	return false
 }
 
@@ -169,7 +168,7 @@ func checkIfArticleExists(article Article) (*Article, error) {
 	if !exists {
 		return nil, fmt.Errorf("Base url does not exists, please set the BASE_DOMAIN env variable")
 	}
-	get_endpoint, exists := os.LookupEnv("GET_ENDPOINT")
+	get_endpoint, exists := os.LookupEnv("ENDPOINT")
 	if !exists {
 		return nil, fmt.Errorf("Endpoint not provided, please set the ENDPOINT env variable")
 	}
